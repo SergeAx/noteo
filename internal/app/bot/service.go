@@ -2,6 +2,7 @@ package bot
 
 import (
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -64,5 +65,6 @@ func (s *Service) getSubscriptionURL(projectID uuid.UUID) string {
 }
 
 func (s *Service) Start() {
+	slog.Info("Starting Telegram bot", "username", s.bot.Me.Username, "url", "https://t.me/"+s.bot.Me.Username)
 	s.bot.Start()
 }
