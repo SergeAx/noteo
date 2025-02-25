@@ -11,30 +11,36 @@ import (
 )
 
 type subscription struct {
-	ID        uuid.UUID `gorm:"primaryKey;type:uuid"`
-	UserID    domain.TelegramUserID
-	ProjectID uuid.UUID
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID            uuid.UUID `gorm:"primaryKey;type:uuid"`
+	UserID        domain.TelegramUserID
+	ProjectID     uuid.UUID
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	SilencedUntil *time.Time
+	MutedUntil    *time.Time
 }
 
 func (s *subscription) toDomain() *domain.Subscription {
 	return &domain.Subscription{
-		ID:        s.ID,
-		UserID:    s.UserID,
-		ProjectID: s.ProjectID,
-		CreatedAt: s.CreatedAt,
-		UpdatedAt: s.UpdatedAt,
+		ID:            s.ID,
+		UserID:        s.UserID,
+		ProjectID:     s.ProjectID,
+		CreatedAt:     s.CreatedAt,
+		UpdatedAt:     s.UpdatedAt,
+		SilencedUntil: s.SilencedUntil,
+		MutedUntil:    s.MutedUntil,
 	}
 }
 
 func subscriptionFromDomain(s *domain.Subscription) *subscription {
 	return &subscription{
-		ID:        s.ID,
-		UserID:    s.UserID,
-		ProjectID: s.ProjectID,
-		CreatedAt: s.CreatedAt,
-		UpdatedAt: s.UpdatedAt,
+		ID:            s.ID,
+		UserID:        s.UserID,
+		ProjectID:     s.ProjectID,
+		CreatedAt:     s.CreatedAt,
+		UpdatedAt:     s.UpdatedAt,
+		SilencedUntil: s.SilencedUntil,
+		MutedUntil:    s.MutedUntil,
 	}
 }
 
@@ -85,4 +91,20 @@ func (r *SubscriptionRepository) GetByUser(userID domain.TelegramUserID) ([]*dom
 		result[i] = subscriptions[i].toDomain()
 	}
 	return result, nil
+}
+
+func (r *SubscriptionRepository) Update(subscription *domain.Subscription) error {
+	dbSubscription := subscriptionFromDomain(subscription)
+	if err := r.db.Save(dbSubscription).Error; err != nil {
+		return fmt.Errorf("updating subscription in db: %w", err)
+	}
+	return nil
+}
+
+func (r *SubscriptionRepository) GetByUserAndProject(userID domain.TelegramUserID, projectID uuid.UUID) (*domain.Subscription, error) {
+	var sub subscription
+	if err := r.db.Where("user_id = ? AND project_id = ?", userID, projectID).First(&sub).Error; err != nil {
+		return nil, fmt.Errorf("getting subscription from db: %w", err)
+	}
+	return sub.toDomain(), nil
 }
