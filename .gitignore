@@ -1,0 +1,50 @@
+# JetBrains IDEA
+.idea/*
+!.idea/runConfigurations/
+!.idea/codeStyles/
+!.idea/inspectionProfiles/
+!.idea/dataSources.xml
+!.idea/encodings.xml
+!.idea/modules.xml
+!.idea/vcs.xml
+!.idea/.name
+!.idea/noteo.iml
+*.iws
+.idea_modules/
+
+# Go specific
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+
+# Project binary
+/noteo
+/bin/
+
+# Database
+*.sqlite
+*.sqlite-journal
+*.sqlite3
+*.db
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Build and dependency directories
+/vendor/
+/dist/
+/tmp/
