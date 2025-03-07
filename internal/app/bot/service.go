@@ -17,9 +17,10 @@ type Service struct {
 	subscriptionService *domain.SubscriptionService
 	stateManager        *StateManager
 
-	mainMenu      *mainMenuHandler
-	projects      *projectsHandler
-	subscriptions *subscriptionsHandler
+	mainMenu                *mainMenuHandler
+	projects                *projectsHandler
+	subscriptions           *subscriptionsHandler
+	subscriptionManagement  *subscriptionManagementHandler
 }
 
 func NewService(
@@ -47,6 +48,7 @@ func NewService(
 	service.mainMenu = newMainMenuHandler(service)
 	service.projects = newProjectsHandler(service)
 	service.subscriptions = newSubscriptionsHandler(service)
+	service.subscriptionManagement = newSubscriptionManagementHandler(service)
 
 	// Register handlers
 	service.registerHandlers()
@@ -58,6 +60,7 @@ func (s *Service) registerHandlers() {
 	s.mainMenu.register()
 	s.projects.register()
 	s.subscriptions.register()
+	s.subscriptionManagement.register()
 }
 
 func (s *Service) getSubscriptionURL(projectID uuid.UUID) string {

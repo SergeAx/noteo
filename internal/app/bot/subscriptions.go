@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/tucnak/telebot"
@@ -37,6 +38,7 @@ func (h *subscriptionsHandler) register() {
 
 func (h *subscriptionsHandler) handleMySubscriptions(m *telebot.Message) {
 	userID := domain.MustNewTelegramUserID(int64(m.Sender.ID))
+
 	subs, err := h.service.subscriptionService.GetUserSubscriptions(userID)
 	if err != nil {
 		slog.Error("Failed to get subscriptions", "error", err)
@@ -49,22 +51,45 @@ func (h *subscriptionsHandler) handleMySubscriptions(m *telebot.Message) {
 		return
 	}
 
-	var message string
+	// Send each subscription as a separate message with a Manage button
 	for i, sub := range subs {
 		project, err := h.service.projectService.GetByID(sub.ProjectID)
 		if err != nil {
 			slog.Error("Failed to get project details", "error", err, "project_id", sub.ProjectID)
 			continue
 		}
-		message += fmt.Sprintf("%d. <b>%s</b>\n", i+1, project.Name)
+		
+		// Create inline keyboard with Manage button
+		markup := &telebot.ReplyMarkup{}
+		btn := btnManageSubscription
+		btn.Data = sub.ProjectID.String() // Store project ID in button data
+		markup.InlineKeyboard = [][]telebot.InlineButton{
+			{btn},
+		}
+		
+		message := fmt.Sprintf("%d. <b>%s</b>", i+1, project.Name)
+		
+		// Add status indicators
+		statusFlags := []string{}
+		if sub.Muted {
+			statusFlags = append(statusFlags, "🔕 Muted")
+		}
+		
+		now := time.Now()
+		isPaused := sub.PausedUntil != nil && sub.PausedUntil.After(now)
+		if isPaused {
+			statusFlags = append(statusFlags, "⏸️ Paused")
+		}
+		
+		if len(statusFlags) > 0 {
+			message += " [" + strings.Join(statusFlags, ", ") + "]"
+		}
+		
+		h.service.bot.Send(m.Sender, message, &telebot.SendOptions{ParseMode: telebot.ModeHTML}, markup)
 	}
-
-	if message == "" {
-		h.service.bot.Send(m.Sender, "Failed to get subscription details. Please try again later.", subscriptionsMenu)
-		return
-	}
-
-	h.service.bot.Send(m.Sender, message, &telebot.SendOptions{ParseMode: telebot.ModeHTML}, subscriptionsMenu)
+	
+	// Send the main menu after all subscriptions
+	h.service.bot.Send(m.Sender, "Use the buttons below to manage your subscriptions.", subscriptionsMenu)
 }
 
 func (h *subscriptionsHandler) handleSubscriptionLink(m *telebot.Message, projectID uuid.UUID) error {

@@ -11,6 +11,11 @@ type UserState int
 const (
 	StateNone UserState = iota
 	StateCreatingProject
+	StateMutingSubscription
+	StateSuspendingSubscription
+	StateUnsubscribing
+	StateCustomMuteDuration
+	StateCustomSuspendDuration
 )
 
 // UserContext stores the current state and data for a user
