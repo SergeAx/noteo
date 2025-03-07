@@ -1,0 +1,6 @@
+[variables]
+CGO_ENABLED = "1"
+# NIXPACKS_GO_VERSION = "1.23.4"
+
+[phases.setup]
+nixPkgs = ['...', 'gcc']
