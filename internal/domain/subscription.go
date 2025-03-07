@@ -13,8 +13,8 @@ type Subscription struct {
 	ProjectID      uuid.UUID
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
-	SilencedUntil  *time.Time // Time until notifications are silenced
-	MutedUntil     *time.Time // Time until notifications are muted
+	Muted          bool       // Boolean flag for muted status
+	PausedUntil    *time.Time // Time until notifications are paused
 }
 
 type SubscriptionRepository interface {
@@ -41,6 +41,7 @@ func (s *SubscriptionService) Subscribe(userID TelegramUserID, projectID uuid.UU
 		ProjectID: projectID,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
+		Muted:     false,
 	}
 
 	if err := s.repo.Create(subscription); err != nil {
@@ -57,45 +58,13 @@ func (s *SubscriptionService) Unsubscribe(userID TelegramUserID, projectID uuid.
 	return nil
 }
 
-func (s *SubscriptionService) SilenceNotifications(userID TelegramUserID, projectID uuid.UUID, until time.Time) error {
+func (s *SubscriptionService) MuteNotifications(userID TelegramUserID, projectID uuid.UUID) error {
 	subscription, err := s.repo.GetByUserAndProject(userID, projectID)
 	if err != nil {
 		return fmt.Errorf("getting subscription: %w", err)
 	}
 	
-	subscription.SilencedUntil = &until
-	subscription.UpdatedAt = time.Now()
-	
-	if err := s.repo.Update(subscription); err != nil {
-		return fmt.Errorf("updating subscription: %w", err)
-	}
-	
-	return nil
-}
-
-func (s *SubscriptionService) UnsilenceNotifications(userID TelegramUserID, projectID uuid.UUID) error {
-	subscription, err := s.repo.GetByUserAndProject(userID, projectID)
-	if err != nil {
-		return fmt.Errorf("getting subscription: %w", err)
-	}
-	
-	subscription.SilencedUntil = nil
-	subscription.UpdatedAt = time.Now()
-	
-	if err := s.repo.Update(subscription); err != nil {
-		return fmt.Errorf("updating subscription: %w", err)
-	}
-	
-	return nil
-}
-
-func (s *SubscriptionService) MuteNotifications(userID TelegramUserID, projectID uuid.UUID, until time.Time) error {
-	subscription, err := s.repo.GetByUserAndProject(userID, projectID)
-	if err != nil {
-		return fmt.Errorf("getting subscription: %w", err)
-	}
-	
-	subscription.MutedUntil = &until
+	subscription.Muted = true
 	subscription.UpdatedAt = time.Now()
 	
 	if err := s.repo.Update(subscription); err != nil {
@@ -111,7 +80,39 @@ func (s *SubscriptionService) UnmuteNotifications(userID TelegramUserID, project
 		return fmt.Errorf("getting subscription: %w", err)
 	}
 	
-	subscription.MutedUntil = nil
+	subscription.Muted = false
+	subscription.UpdatedAt = time.Now()
+	
+	if err := s.repo.Update(subscription); err != nil {
+		return fmt.Errorf("updating subscription: %w", err)
+	}
+	
+	return nil
+}
+
+func (s *SubscriptionService) PauseNotifications(userID TelegramUserID, projectID uuid.UUID, until time.Time) error {
+	subscription, err := s.repo.GetByUserAndProject(userID, projectID)
+	if err != nil {
+		return fmt.Errorf("getting subscription: %w", err)
+	}
+	
+	subscription.PausedUntil = &until
+	subscription.UpdatedAt = time.Now()
+	
+	if err := s.repo.Update(subscription); err != nil {
+		return fmt.Errorf("updating subscription: %w", err)
+	}
+	
+	return nil
+}
+
+func (s *SubscriptionService) ResumeNotifications(userID TelegramUserID, projectID uuid.UUID) error {
+	subscription, err := s.repo.GetByUserAndProject(userID, projectID)
+	if err != nil {
+		return fmt.Errorf("getting subscription: %w", err)
+	}
+	
+	subscription.PausedUntil = nil
 	subscription.UpdatedAt = time.Now()
 	
 	if err := s.repo.Update(subscription); err != nil {

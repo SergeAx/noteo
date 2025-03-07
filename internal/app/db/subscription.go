@@ -16,8 +16,8 @@ type subscription struct {
 	ProjectID     uuid.UUID
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
-	SilencedUntil *time.Time
-	MutedUntil    *time.Time
+	Muted         bool
+	PausedUntil   *time.Time
 }
 
 func (s *subscription) toDomain() *domain.Subscription {
@@ -27,8 +27,8 @@ func (s *subscription) toDomain() *domain.Subscription {
 		ProjectID:     s.ProjectID,
 		CreatedAt:     s.CreatedAt,
 		UpdatedAt:     s.UpdatedAt,
-		SilencedUntil: s.SilencedUntil,
-		MutedUntil:    s.MutedUntil,
+		Muted:         s.Muted,
+		PausedUntil:   s.PausedUntil,
 	}
 }
 
@@ -39,8 +39,8 @@ func subscriptionFromDomain(s *domain.Subscription) *subscription {
 		ProjectID:     s.ProjectID,
 		CreatedAt:     s.CreatedAt,
 		UpdatedAt:     s.UpdatedAt,
-		SilencedUntil: s.SilencedUntil,
-		MutedUntil:    s.MutedUntil,
+		Muted:         s.Muted,
+		PausedUntil:   s.PausedUntil,
 	}
 }
 
