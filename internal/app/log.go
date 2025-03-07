@@ -37,14 +37,14 @@ func InitLogger(cfg *Config) error {
 }
 
 func parseLogLevel(level string) (slog.Level, error) {
-	switch strings.ToUpper(level) {
-	case "DEBUG":
+	switch strings.ToLower(level) {
+	case "debug":
 		return slog.LevelDebug, nil
-	case "INFO":
+	case "info":
 		return slog.LevelInfo, nil
-	case "WARN":
+	case "warn":
 		return slog.LevelWarn, nil
-	case "ERROR":
+	case "error":
 		return slog.LevelError, nil
 	default:
 		return slog.LevelInfo, fmt.Errorf("must be one of: DEBUG, INFO, WARN, ERROR. Got: %s", level)

@@ -52,10 +52,9 @@ func LoadConfig() (*Config, error) {
 		"info":  true,
 		"warn":  true,
 		"error": true,
-		"fatal": true,
 	}
 	if !validLogLevels[logLevel] {
-		return nil, fmt.Errorf("invalid log level: %s (must be one of debug, info, warn, error, fatal)", logLevel)
+		return nil, fmt.Errorf("invalid log level: %s (must be one of debug, info, warn, error)", logLevel)
 	}
 
 	return &Config{
