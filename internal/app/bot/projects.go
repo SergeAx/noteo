@@ -67,7 +67,7 @@ func (h *projectsHandler) handleMyProjects(m *telebot.Message) {
 }
 
 func (h *projectsHandler) handleCreateProject(m *telebot.Message) {
-	h.service.stateManager.SetState(m.Sender.ID, StateCreatingProject)
+	h.service.stateManager.SetState(m.Sender.ID, StateCreatingProject, nil)
 	h.service.bot.Send(m.Sender, "Please enter the name for your new project:", cancelMenu)
 }
 

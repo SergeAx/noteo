@@ -61,7 +61,7 @@ func (h *mainMenuHandler) handleBackToMenu(m *telebot.Message) {
 }
 
 func (h *mainMenuHandler) handleTextMessage(m *telebot.Message) {
-	state, exists := h.service.stateManager.GetState(m.Sender.ID)
+	state, _, exists := h.service.stateManager.GetState(m.Sender.ID)
 	if !exists {
 		slog.Debug("Received unhandled text message",
 			"text", m.Text,
@@ -70,7 +70,7 @@ func (h *mainMenuHandler) handleTextMessage(m *telebot.Message) {
 		return
 	}
 
-	switch state.State {
+	switch state {
 	case StateCreatingProject:
 		if err := h.service.projects.handleProjectCreation(m); err != nil {
 			slog.Error("Failed to create project", "error", err)
@@ -79,7 +79,7 @@ func (h *mainMenuHandler) handleTextMessage(m *telebot.Message) {
 		h.service.stateManager.ClearState(m.Sender.ID)
 
 	default:
-		slog.Error("Unknown state", "state", state.State)
+		slog.Error("Unknown state", "state", state)
 		h.service.stateManager.ClearState(m.Sender.ID)
 		h.service.bot.Send(m.Sender, "Something went wrong. Please try again.", mainMenu)
 	}

@@ -17,6 +17,7 @@ const (
 type UserContext struct {
 	State     UserState
 	CreatedAt time.Time
+	Data      map[string]interface{} // For storing additional data like project ID
 }
 
 // StateManager handles all user state-related operations
@@ -37,20 +38,24 @@ func NewStateManager() *StateManager {
 }
 
 // GetState retrieves the current state for a user
-func (sm *StateManager) GetState(userID int) (UserContext, bool) {
+func (sm *StateManager) GetState(userID int) (UserState, map[string]interface{}, bool) {
 	sm.stateMutex.RLock()
 	defer sm.stateMutex.RUnlock()
-	state, exists := sm.userStates[userID]
-	return state, exists
+	ctx, exists := sm.userStates[userID]
+	if !exists {
+		return StateNone, nil, false
+	}
+	return ctx.State, ctx.Data, true
 }
 
 // SetState sets the state for a user
-func (sm *StateManager) SetState(userID int, state UserState) {
+func (sm *StateManager) SetState(userID int, state UserState, data map[string]interface{}) {
 	sm.stateMutex.Lock()
 	defer sm.stateMutex.Unlock()
 	sm.userStates[userID] = UserContext{
 		State:     state,
 		CreatedAt: time.Now(),
+		Data:      data,
 	}
 }
 
