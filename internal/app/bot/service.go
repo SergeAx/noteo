@@ -56,6 +56,17 @@ func NewService(
 	return service, nil
 }
 
+// SendMessage implements the queue.MessageSender interface
+func (s *Service) SendMessage(msg domain.Message) error {
+	sendParams := &telebot.SendOptions{}
+	if msg.Muted {
+		sendParams.DisableNotification = true
+	}
+
+	_, err := s.bot.Send(&telebot.Chat{ID: msg.UserID.Int64()}, msg.Text, sendParams)
+	return err
+}
+
 func (s *Service) registerHandlers() {
 	s.mainMenu.register()
 	s.projects.register()

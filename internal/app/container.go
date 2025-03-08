@@ -8,6 +8,7 @@ import (
 	"gitlab.com/trum/noteo/internal/app/api"
 	"gitlab.com/trum/noteo/internal/app/bot"
 	"gitlab.com/trum/noteo/internal/app/db"
+	"gitlab.com/trum/noteo/internal/app/queue"
 	"gitlab.com/trum/noteo/internal/domain"
 )
 
@@ -52,6 +53,7 @@ func NewContainer(cfg *Config) (*Container, error) {
 	c.provide(NewBotConfig, "bot config")
 	c.provide(NewAPIConfig, "api config")
 	c.provide(NewDBConfig, "db config")
+	c.provide(NewQueueConfig, "queue config")
 
 	// Database
 	c.provide(db.NewDB, "database")

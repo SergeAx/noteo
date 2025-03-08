@@ -3,12 +3,14 @@ package app
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/spf13/viper"
 
 	"gitlab.com/trum/noteo/internal/app/api"
 	"gitlab.com/trum/noteo/internal/app/bot"
 	"gitlab.com/trum/noteo/internal/app/db"
+	"gitlab.com/trum/noteo/internal/app/queue"
 )
 
 type Config struct {
@@ -90,5 +92,15 @@ func NewAPIConfig(cfg *Config) *api.Config {
 func NewDBConfig(cfg *Config) *db.Config {
 	return &db.Config{
 		DSN: cfg.DBDSN,
+	}
+}
+
+// NewQueueConfig creates a new queue configuration
+func NewQueueConfig(cfg *Config) *queue.Config {
+	return &queue.Config{
+		Capacity:          1000,
+		InitialRetryDelay: 1 * time.Second,
+		MaxRetryDelay:     1 * time.Minute,
+		MaxRetries:        10,
 	}
 }
