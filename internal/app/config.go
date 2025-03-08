@@ -8,6 +8,7 @@ import (
 
 	"gitlab.com/trum/noteo/internal/app/api"
 	"gitlab.com/trum/noteo/internal/app/bot"
+	"gitlab.com/trum/noteo/internal/app/db"
 )
 
 type Config struct {
@@ -15,6 +16,7 @@ type Config struct {
 	Port      int
 	LogFormat string
 	LogLevel  string
+	DBDSN     string
 }
 
 // LoadConfig initializes and returns the application configuration
@@ -33,6 +35,10 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("NOTEO_BOT_TOKEN is required")
 	}
 
+	if !viper.IsSet("DB_DSN") {
+		return nil, fmt.Errorf("NOTEO_DB_DSN is required")
+	}
+
 	// Get port and validate
 	port := viper.GetInt("PORT")
 	if port <= 0 || port > 65535 {
@@ -40,13 +46,13 @@ func LoadConfig() (*Config, error) {
 	}
 
 	// Get log format and validate
-	logFormat := strings.ToLower(viper.GetString("LOG_FORMAT"))
+	logFormat := strings.ToLower(strings.TrimSpace(viper.GetString("LOG_FORMAT")))
 	if logFormat != "json" && logFormat != "text" {
 		return nil, fmt.Errorf("invalid log format: %s (must be 'json' or 'text')", logFormat)
 	}
 
 	// Get log level and validate
-	logLevel := strings.ToLower(viper.GetString("LOG_LEVEL"))
+	logLevel := strings.ToLower(strings.TrimSpace(viper.GetString("LOG_LEVEL")))
 	validLogLevels := map[string]bool{
 		"debug": true,
 		"info":  true,
@@ -54,14 +60,15 @@ func LoadConfig() (*Config, error) {
 		"error": true,
 	}
 	if !validLogLevels[logLevel] {
-		return nil, fmt.Errorf("invalid log level: %s (must be one of debug, info, warn, error)", logLevel)
+		return nil, fmt.Errorf("invalid log level: %s (must be one of: debug, info, warn, error)", logLevel)
 	}
 
 	return &Config{
-		BotToken:  viper.GetString("BOT_TOKEN"),
+		BotToken:  strings.TrimSpace(viper.GetString("BOT_TOKEN")),
 		Port:      port,
 		LogFormat: logFormat,
 		LogLevel:  logLevel,
+		DBDSN:     strings.TrimSpace(viper.GetString("DB_DSN")),
 	}, nil
 }
 
@@ -76,5 +83,12 @@ func NewBotConfig(cfg *Config) *bot.Config {
 func NewAPIConfig(cfg *Config) *api.Config {
 	return &api.Config{
 		Port: cfg.Port,
+	}
+}
+
+// NewDBConfig creates database-specific configuration
+func NewDBConfig(cfg *Config) *db.Config {
+	return &db.Config{
+		DSN: cfg.DBDSN,
 	}
 }

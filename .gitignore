@@ -27,6 +27,7 @@ go.work
 /bin/
 
 # Database
+*.etilqs
 *.sqlite
 *.sqlite-journal
 *.sqlite3

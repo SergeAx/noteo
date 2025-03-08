@@ -51,6 +51,7 @@ func NewContainer(cfg *Config) (*Container, error) {
 	// Provide service configs
 	c.provide(NewBotConfig, "bot config")
 	c.provide(NewAPIConfig, "api config")
+	c.provide(NewDBConfig, "db config")
 
 	// Database
 	c.provide(db.NewDB, "database")
