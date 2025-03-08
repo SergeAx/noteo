@@ -24,7 +24,7 @@ var (
 
 	subscriptionManagementMenu = &telebot.ReplyMarkup{
 		ReplyKeyboard: [][]telebot.ReplyButton{
-			{btnBackToSubscriptions},
+			{btnBackToSubscriptions, btnBackToMenu},
 		},
 		ResizeReplyKeyboard: true,
 	}
@@ -39,7 +39,7 @@ func newSubscriptionManagementHandler(s *Service) *subscriptionManagementHandler
 }
 
 func (h *subscriptionManagementHandler) register() {
-	h.service.bot.Handle(&btnBackToSubscriptions, h.handleBackToSubscriptions)
+	h.service.bot.Handle(&btnBackToSubscriptions, h.service.subscriptions.handleMySubscriptions)
 	h.service.bot.Handle(&btnManageSubscription, h.handleManageSubscription)
 	h.service.bot.Handle(&btnMuteSubscription, h.handleMuteSubscription)
 	h.service.bot.Handle(&btnUnmuteSubscription, h.handleUnmuteSubscription)
@@ -49,58 +49,44 @@ func (h *subscriptionManagementHandler) register() {
 	h.service.bot.Handle(&btnResubscribe, h.handleResubscribe)
 }
 
-// handleBackToSubscriptions redirects to the subscriptions list
-func (h *subscriptionManagementHandler) handleBackToSubscriptions(m *telebot.Message) {
-	// Get the subscriptions handler from the service
-	h.service.subscriptions.handleMySubscriptions(m)
-}
-
-// handleManageSubscription handles the Manage button click for a subscription
-func (h *subscriptionManagementHandler) handleManageSubscription(c *telebot.Callback) {
-	// Extract project ID from callback data
+// parseProjectID parses a project ID from callback data and handles errors
+func (h *subscriptionManagementHandler) parseProjectID(c *telebot.Callback, action string) (uuid.UUID, bool) {
 	projectID, err := uuid.Parse(c.Data)
 	if err != nil {
-		slog.Error("Invalid project ID in manage subscription callback", "error", err, "data", c.Data)
+		slog.Error("Invalid project ID in "+action+" callback", "error", err, "data", c.Data)
 		h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Invalid subscription. Please try again."})
-		return
+		return uuid.Nil, false
 	}
+	return projectID, true
+}
 
-	// Get project details
+// getUserID extracts the user ID from a callback
+func (h *subscriptionManagementHandler) getUserID(c *telebot.Callback) domain.TelegramUserID {
+	return domain.MustNewTelegramUserID(int64(c.Sender.ID))
+}
+
+func (h *subscriptionManagementHandler) findSubscription(userID domain.TelegramUserID, projectID uuid.UUID) (*domain.Subscription, *domain.Project, error) {
 	project, err := h.service.projectService.GetByID(projectID)
 	if err != nil {
-		slog.Error("Failed to get project details", "error", err, "project_id", projectID)
-		h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Failed to get subscription details. Please try again."})
-		return
+		return nil, nil, fmt.Errorf("failed to get project details: %w", err)
 	}
 
-	// Get subscription details
-	userID := domain.MustNewTelegramUserID(int64(c.Sender.ID))
-	subscription, err := h.service.subscriptionService.GetUserSubscriptions(userID)
+	subscriptions, err := h.service.subscriptionService.GetUserSubscriptions(userID)
 	if err != nil {
-		slog.Error("Failed to get user subscriptions", "error", err)
-		h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Failed to get subscription details. Please try again."})
-		return
+		return nil, nil, fmt.Errorf("failed to get user subscriptions: %w", err)
 	}
 
-	// Find the specific subscription
-	var sub *domain.Subscription
-	for _, s := range subscription {
+	for _, s := range subscriptions {
 		if s.ProjectID == projectID {
-			sub = s
-			break
+			return s, project, nil
 		}
 	}
 
-	if sub == nil {
-		slog.Error("Subscription not found", "project_id", projectID, "user_id", userID)
-		h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Subscription not found. Please try again."})
-		return
-	}
+	return nil, nil, fmt.Errorf("subscription not found")
+}
 
-	// Respond to the callback to remove the loading indicator
-	h.service.bot.Respond(c, &telebot.CallbackResponse{})
-
-	// Create inline keyboard with management options
+// createSubscriptionButtons creates the inline keyboard buttons for subscription management
+func (h *subscriptionManagementHandler) createSubscriptionButtons(sub *domain.Subscription, projectID uuid.UUID) *telebot.ReplyMarkup {
 	inlineMarkup := &telebot.ReplyMarkup{}
 
 	// Mute/Unmute button
@@ -133,6 +119,22 @@ func (h *subscriptionManagementHandler) handleManageSubscription(c *telebot.Call
 		{unsubBtn},
 	}
 
+	return inlineMarkup
+}
+
+// createResubscribeButton creates an inline keyboard with just the resubscribe button
+func (h *subscriptionManagementHandler) createResubscribeButton(projectID uuid.UUID) *telebot.ReplyMarkup {
+	inlineMarkup := &telebot.ReplyMarkup{}
+	resubBtn := btnResubscribe
+	resubBtn.Data = projectID.String()
+	inlineMarkup.InlineKeyboard = [][]telebot.InlineButton{
+		{resubBtn},
+	}
+	return inlineMarkup
+}
+
+// createStatusMessage creates a status message for a subscription
+func (h *subscriptionManagementHandler) createStatusMessage(sub *domain.Subscription, project *domain.Project) string {
 	// Status message
 	statusMsg := ""
 	if sub.Muted {
@@ -141,13 +143,71 @@ func (h *subscriptionManagementHandler) handleManageSubscription(c *telebot.Call
 		statusMsg += "🔔 Notifications are currently enabled\n"
 	}
 
+	now := time.Now()
+	isPaused := sub.PausedUntil != nil && sub.PausedUntil.After(now)
 	if isPaused {
 		statusMsg += "⏸️ Notifications are paused until " + sub.PausedUntil.Format("Jan 2, 2006 15:04")
 	} else {
 		statusMsg += "▶️ Notifications are active"
 	}
 
-	message := fmt.Sprintf("Managing subscription to <b>%s</b>\n\n%s", project.Name, statusMsg)
+	return fmt.Sprintf("Managing subscription to <b>%s</b>\n\n%s", project.Name, statusMsg)
+}
+
+// handleSubscriptionAction performs a subscription action and handles common response patterns
+func (h *subscriptionManagementHandler) handleSubscriptionAction(
+	c *telebot.Callback,
+	action string,
+	actionFunc func(userID domain.TelegramUserID, projectID uuid.UUID) error,
+	successMessage string,
+	confirmationMessage string,
+) {
+	projectID, ok := h.parseProjectID(c, action)
+	if !ok {
+		return
+	}
+
+	userID := h.getUserID(c)
+	if err := actionFunc(userID, projectID); err != nil {
+		slog.Error("Failed to "+action+" subscription", "error", err)
+		h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Failed to " + action + " subscription. Please try again."})
+		return
+	}
+
+	// Respond to the callback to remove the loading indicator
+	h.service.bot.Respond(c, &telebot.CallbackResponse{Text: successMessage})
+
+	// Update the message with new status and inline buttons
+	h.updateSubscriptionMessage(c, projectID)
+
+	// Send a confirmation with the subscription management menu
+	h.service.bot.Send(c.Sender, confirmationMessage, subscriptionManagementMenu)
+}
+
+// handleManageSubscription handles the Manage button click for a subscription
+func (h *subscriptionManagementHandler) handleManageSubscription(c *telebot.Callback) {
+	// Extract project ID from callback data
+	projectID, ok := h.parseProjectID(c, "manage subscription")
+	if !ok {
+		return
+	}
+
+	userID := h.getUserID(c)
+	sub, project, err := h.findSubscription(userID, projectID)
+	if err != nil {
+		slog.Error("Failed to find subscription", "error", err)
+		h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Failed to get subscription details. Please try again."})
+		return
+	}
+
+	// Respond to the callback to remove the loading indicator
+	h.service.bot.Respond(c, &telebot.CallbackResponse{})
+
+	// Create inline keyboard with management options
+	inlineMarkup := h.createSubscriptionButtons(sub, projectID)
+
+	// Create status message
+	message := h.createStatusMessage(sub, project)
 
 	// Send message with both inline buttons and reply keyboard
 	_, err = h.service.bot.Send(c.Sender, message, &telebot.SendOptions{ParseMode: telebot.ModeHTML}, inlineMarkup)
@@ -164,83 +224,18 @@ func (h *subscriptionManagementHandler) handleManageSubscription(c *telebot.Call
 
 // updateSubscriptionMessage updates the subscription management message with current status
 func (h *subscriptionManagementHandler) updateSubscriptionMessage(c *telebot.Callback, projectID uuid.UUID) {
-	// Get project details
-	project, err := h.service.projectService.GetByID(projectID)
+	userID := h.getUserID(c)
+	sub, project, err := h.findSubscription(userID, projectID)
 	if err != nil {
-		slog.Error("Failed to get project details", "error", err, "project_id", projectID)
-		return
-	}
-
-	// Get subscription details
-	userID := domain.MustNewTelegramUserID(int64(c.Sender.ID))
-	subscriptions, err := h.service.subscriptionService.GetUserSubscriptions(userID)
-	if err != nil {
-		slog.Error("Failed to get user subscriptions", "error", err)
-		return
-	}
-
-	// Find the specific subscription
-	var sub *domain.Subscription
-	for _, s := range subscriptions {
-		if s.ProjectID == projectID {
-			sub = s
-			break
-		}
-	}
-
-	if sub == nil {
-		slog.Error("Subscription not found", "project_id", projectID, "user_id", userID)
+		slog.Error("Failed to find subscription for update", "error", err)
 		return
 	}
 
 	// Create inline keyboard with management options
-	inlineMarkup := &telebot.ReplyMarkup{}
+	inlineMarkup := h.createSubscriptionButtons(sub, projectID)
 
-	// Mute/Unmute button
-	var muteBtn telebot.InlineButton
-	if sub.Muted {
-		muteBtn = btnUnmuteSubscription
-	} else {
-		muteBtn = btnMuteSubscription
-	}
-	muteBtn.Data = projectID.String()
-
-	// Pause/Resume button
-	var pauseBtn telebot.InlineButton
-	now := time.Now()
-	isPaused := sub.PausedUntil != nil && sub.PausedUntil.After(now)
-	if isPaused {
-		pauseBtn = btnResumeSubscription
-	} else {
-		pauseBtn = btnPauseSubscription
-	}
-	pauseBtn.Data = projectID.String()
-
-	// Unsubscribe button
-	unsubBtn := btnUnsubscribe
-	unsubBtn.Data = projectID.String()
-
-	inlineMarkup.InlineKeyboard = [][]telebot.InlineButton{
-		{muteBtn},
-		{pauseBtn},
-		{unsubBtn},
-	}
-
-	// Status message
-	statusMsg := ""
-	if sub.Muted {
-		statusMsg += "🔕 Notifications are currently muted\n"
-	} else {
-		statusMsg += "🔔 Notifications are currently enabled\n"
-	}
-
-	if isPaused {
-		statusMsg += "⏸️ Notifications are paused until " + sub.PausedUntil.Format("Jan 2, 2006 15:04")
-	} else {
-		statusMsg += "▶️ Notifications are active"
-	}
-
-	message := fmt.Sprintf("Managing subscription to <b>%s</b>\n\n%s", project.Name, statusMsg)
+	// Create status message
+	message := h.createStatusMessage(sub, project)
 
 	// Update the message with inline buttons
 	_, err = h.service.bot.Edit(c.Message, message, &telebot.SendOptions{ParseMode: telebot.ModeHTML}, inlineMarkup)
@@ -251,70 +246,38 @@ func (h *subscriptionManagementHandler) updateSubscriptionMessage(c *telebot.Cal
 
 // handleMuteSubscription handles muting a subscription
 func (h *subscriptionManagementHandler) handleMuteSubscription(c *telebot.Callback) {
-	projectID, err := uuid.Parse(c.Data)
-	if err != nil {
-		slog.Error("Invalid project ID in mute subscription callback", "error", err, "data", c.Data)
-		h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Invalid subscription. Please try again."})
-		return
-	}
-
-	// Mute the subscription
-	userID := domain.MustNewTelegramUserID(int64(c.Sender.ID))
-	if err := h.service.subscriptionService.MuteNotifications(userID, projectID); err != nil {
-		slog.Error("Failed to mute subscription", "error", err)
-		h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Failed to mute subscription. Please try again."})
-		return
-	}
-
-	// Respond to the callback to remove the loading indicator
-	h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Subscription muted"})
-
-	// Update the message with new status and inline buttons
-	h.updateSubscriptionMessage(c, projectID)
-
-	// Send a confirmation with the subscription management menu
-	h.service.bot.Send(c.Sender, "Notifications have been muted.", subscriptionManagementMenu)
+	h.handleSubscriptionAction(
+		c,
+		"mute",
+		h.service.subscriptionService.MuteNotifications,
+		"Subscription muted",
+		"Notifications have been muted.",
+	)
 }
 
 // handleUnmuteSubscription handles unmuting a subscription
 func (h *subscriptionManagementHandler) handleUnmuteSubscription(c *telebot.Callback) {
-	projectID, err := uuid.Parse(c.Data)
-	if err != nil {
-		slog.Error("Invalid project ID in unmute subscription callback", "error", err, "data", c.Data)
-		h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Invalid subscription. Please try again."})
-		return
-	}
-
-	// Unmute the subscription
-	userID := domain.MustNewTelegramUserID(int64(c.Sender.ID))
-	if err := h.service.subscriptionService.UnmuteNotifications(userID, projectID); err != nil {
-		slog.Error("Failed to unmute subscription", "error", err)
-		h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Failed to unmute subscription. Please try again."})
-		return
-	}
-
-	// Respond to the callback to remove the loading indicator
-	h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Subscription unmuted"})
-
-	// Update the message with new status and inline buttons
-	h.updateSubscriptionMessage(c, projectID)
-
-	// Send a confirmation with the subscription management menu
-	h.service.bot.Send(c.Sender, "Notifications have been unmuted.", subscriptionManagementMenu)
+	h.handleSubscriptionAction(
+		c,
+		"unmute",
+		h.service.subscriptionService.UnmuteNotifications,
+		"Subscription unmuted",
+		"Notifications have been unmuted.",
+	)
 }
 
 // handlePauseSubscription handles pausing a subscription
 func (h *subscriptionManagementHandler) handlePauseSubscription(c *telebot.Callback) {
-	projectID, err := uuid.Parse(c.Data)
-	if err != nil {
-		slog.Error("Invalid project ID in pause subscription callback", "error", err, "data", c.Data)
-		h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Invalid subscription. Please try again."})
+	projectID, ok := h.parseProjectID(c, "pause subscription")
+	if !ok {
 		return
 	}
 
 	// Pause the subscription for 24 hours
-	userID := domain.MustNewTelegramUserID(int64(c.Sender.ID))
+	userID := h.getUserID(c)
 	pauseUntil := time.Now().Add(24 * time.Hour)
+
+	// We need a custom function to handle the additional pauseUntil parameter
 	if err := h.service.subscriptionService.PauseNotifications(userID, projectID, pauseUntil); err != nil {
 		slog.Error("Failed to pause subscription", "error", err)
 		h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Failed to pause subscription. Please try again."})
@@ -333,41 +296,25 @@ func (h *subscriptionManagementHandler) handlePauseSubscription(c *telebot.Callb
 
 // handleResumeSubscription handles resuming a subscription
 func (h *subscriptionManagementHandler) handleResumeSubscription(c *telebot.Callback) {
-	projectID, err := uuid.Parse(c.Data)
-	if err != nil {
-		slog.Error("Invalid project ID in resume subscription callback", "error", err, "data", c.Data)
-		h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Invalid subscription. Please try again."})
-		return
-	}
-
-	// Resume the subscription
-	userID := domain.MustNewTelegramUserID(int64(c.Sender.ID))
-	if err := h.service.subscriptionService.ResumeNotifications(userID, projectID); err != nil {
-		slog.Error("Failed to resume subscription", "error", err)
-		h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Failed to resume subscription. Please try again."})
-		return
-	}
-
-	// Respond to the callback to remove the loading indicator
-	h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Subscription resumed"})
-
-	// Update the message with new status and inline buttons
-	h.updateSubscriptionMessage(c, projectID)
-
-	// Send a confirmation with the subscription management menu
-	h.service.bot.Send(c.Sender, "Notifications have been resumed.", subscriptionManagementMenu)
+	h.handleSubscriptionAction(
+		c,
+		"resume",
+		h.service.subscriptionService.ResumeNotifications,
+		"Subscription resumed",
+		"Notifications have been resumed.",
+	)
 }
 
 // handleUnsubscribe handles unsubscribing from a project
 func (h *subscriptionManagementHandler) handleUnsubscribe(c *telebot.Callback) {
-	projectID, err := uuid.Parse(c.Data)
-	if err != nil {
-		slog.Error("Invalid project ID in unsubscribe callback", "error", err, "data", c.Data)
-		h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Invalid subscription. Please try again."})
+	projectID, ok := h.parseProjectID(c, "unsubscribe")
+	if !ok {
 		return
 	}
 
-	// Get project details
+	userID := h.getUserID(c)
+
+	// Get project details before unsubscribing
 	project, err := h.service.projectService.GetByID(projectID)
 	if err != nil {
 		slog.Error("Failed to get project details", "error", err, "project_id", projectID)
@@ -376,7 +323,6 @@ func (h *subscriptionManagementHandler) handleUnsubscribe(c *telebot.Callback) {
 	}
 
 	// Unsubscribe the user
-	userID := domain.MustNewTelegramUserID(int64(c.Sender.ID))
 	if err := h.service.subscriptionService.Unsubscribe(userID, projectID); err != nil {
 		slog.Error("Failed to unsubscribe", "error", err)
 		h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Failed to unsubscribe. Please try again."})
@@ -387,12 +333,7 @@ func (h *subscriptionManagementHandler) handleUnsubscribe(c *telebot.Callback) {
 	h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Unsubscribed successfully"})
 
 	// Create inline keyboard with re-subscribe button
-	inlineMarkup := &telebot.ReplyMarkup{}
-	resubBtn := btnResubscribe
-	resubBtn.Data = projectID.String()
-	inlineMarkup.InlineKeyboard = [][]telebot.InlineButton{
-		{resubBtn},
-	}
+	inlineMarkup := h.createResubscribeButton(projectID)
 
 	// Update the message
 	message := fmt.Sprintf("You have unsubscribed from <b>%s</b>", project.Name)
@@ -407,27 +348,11 @@ func (h *subscriptionManagementHandler) handleUnsubscribe(c *telebot.Callback) {
 
 // handleResubscribe handles re-subscribing to a project
 func (h *subscriptionManagementHandler) handleResubscribe(c *telebot.Callback) {
-	projectID, err := uuid.Parse(c.Data)
-	if err != nil {
-		slog.Error("Invalid project ID in resubscribe callback", "error", err, "data", c.Data)
-		h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Invalid project. Please try again."})
-		return
-	}
-
-	// Re-subscribe the user
-	userID := domain.MustNewTelegramUserID(int64(c.Sender.ID))
-	if err := h.service.subscriptionService.Subscribe(userID, projectID); err != nil {
-		slog.Error("Failed to resubscribe", "error", err)
-		h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Failed to resubscribe. Please try again."})
-		return
-	}
-
-	// Respond to the callback to remove the loading indicator
-	h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Re-subscribed successfully"})
-
-	// Update the message with the regular subscription management view
-	h.updateSubscriptionMessage(c, projectID)
-
-	// Send a confirmation with the subscription management menu
-	h.service.bot.Send(c.Sender, "You have been re-subscribed to the project.", subscriptionManagementMenu)
+	h.handleSubscriptionAction(
+		c,
+		"resubscribe",
+		h.service.subscriptionService.Subscribe,
+		"Re-subscribed successfully",
+		"You have been re-subscribed to the project.",
+	)
 }
