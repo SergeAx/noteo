@@ -17,10 +17,10 @@ type Service struct {
 	subscriptionService *domain.SubscriptionService
 	stateManager        *StateManager
 
-	mainMenu                *mainMenuHandler
-	projects                *projectsHandler
-	subscriptions           *subscriptionsHandler
-	subscriptionManagement  *subscriptionManagementHandler
+	mainMenu               *mainMenuHandler
+	projects               *projectsHandler
+	subscriptions          *subscriptionsHandler
+	subscriptionManagement *subscriptionManagementHandler
 }
 
 func NewService(
@@ -64,7 +64,7 @@ func (s *Service) registerHandlers() {
 }
 
 func (s *Service) getSubscriptionURL(projectID uuid.UUID) string {
-	return fmt.Sprintf("t.me/%s?start=%s", s.bot.Me.Username, projectID)
+	return fmt.Sprintf("https://t.me/%s?start=%s", s.bot.Me.Username, projectID.String())
 }
 
 func (s *Service) Start() {

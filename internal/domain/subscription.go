@@ -8,13 +8,13 @@ import (
 )
 
 type Subscription struct {
-	ID             uuid.UUID
-	UserID         TelegramUserID
-	ProjectID      uuid.UUID
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
-	Muted          bool       // Boolean flag for muted status
-	PausedUntil    *time.Time // Time until notifications are paused
+	ID          uuid.UUID
+	UserID      TelegramUserID
+	ProjectID   uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	Muted       bool       // Boolean flag for muted status
+	PausedUntil *time.Time // Time until notifications are paused
 }
 
 // Paused returns true if the subscription is currently paused
@@ -68,14 +68,14 @@ func (s *SubscriptionService) MuteNotifications(userID TelegramUserID, projectID
 	if err != nil {
 		return fmt.Errorf("getting subscription: %w", err)
 	}
-	
+
 	subscription.Muted = true
 	subscription.UpdatedAt = time.Now()
-	
+
 	if err := s.repo.Update(subscription); err != nil {
 		return fmt.Errorf("updating subscription: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -84,14 +84,14 @@ func (s *SubscriptionService) UnmuteNotifications(userID TelegramUserID, project
 	if err != nil {
 		return fmt.Errorf("getting subscription: %w", err)
 	}
-	
+
 	subscription.Muted = false
 	subscription.UpdatedAt = time.Now()
-	
+
 	if err := s.repo.Update(subscription); err != nil {
 		return fmt.Errorf("updating subscription: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -100,14 +100,14 @@ func (s *SubscriptionService) PauseNotifications(userID TelegramUserID, projectI
 	if err != nil {
 		return fmt.Errorf("getting subscription: %w", err)
 	}
-	
+
 	subscription.PausedUntil = &until
 	subscription.UpdatedAt = time.Now()
-	
+
 	if err := s.repo.Update(subscription); err != nil {
 		return fmt.Errorf("updating subscription: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -116,14 +116,14 @@ func (s *SubscriptionService) ResumeNotifications(userID TelegramUserID, project
 	if err != nil {
 		return fmt.Errorf("getting subscription: %w", err)
 	}
-	
+
 	subscription.PausedUntil = nil
 	subscription.UpdatedAt = time.Now()
-	
+
 	if err := s.repo.Update(subscription); err != nil {
 		return fmt.Errorf("updating subscription: %w", err)
 	}
-	
+
 	return nil
 }
 

@@ -57,7 +57,7 @@ func (h *subscriptionsHandler) handleMySubscriptions(m *telebot.Message) {
 			slog.Error("Failed to get project details", "error", err, "project_id", sub.ProjectID)
 			continue
 		}
-		
+
 		// Create inline keyboard with Manage button
 		markup := &telebot.ReplyMarkup{}
 		btn := btnManageSubscription
@@ -65,9 +65,9 @@ func (h *subscriptionsHandler) handleMySubscriptions(m *telebot.Message) {
 		markup.InlineKeyboard = [][]telebot.InlineButton{
 			{btn},
 		}
-		
+
 		message := fmt.Sprintf("%d. <b>%s</b>", i+1, project.Name)
-		
+
 		// Add status indicators
 		statusFlags := []string{}
 		if sub.Muted {
@@ -77,14 +77,14 @@ func (h *subscriptionsHandler) handleMySubscriptions(m *telebot.Message) {
 		if sub.Paused() {
 			statusFlags = append(statusFlags, "⏸️ Paused")
 		}
-		
+
 		if len(statusFlags) > 0 {
 			message += " [" + strings.Join(statusFlags, ", ") + "]"
 		}
-		
+
 		h.service.bot.Send(m.Sender, message, &telebot.SendOptions{ParseMode: telebot.ModeHTML}, markup)
 	}
-	
+
 	// Send the main menu after all subscriptions
 	h.service.bot.Send(m.Sender, "Use the buttons below to manage your subscriptions.", subscriptionsMenu)
 }
