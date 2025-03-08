@@ -17,6 +17,11 @@ type Subscription struct {
 	PausedUntil    *time.Time // Time until notifications are paused
 }
 
+// Paused returns true if the subscription is currently paused
+func (s *Subscription) Paused() bool {
+	return s.PausedUntil != nil && time.Now().Before(*s.PausedUntil)
+}
+
 type SubscriptionRepository interface {
 	Create(subscription *Subscription) error
 	Delete(userID TelegramUserID, projectID uuid.UUID) error

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/tucnak/telebot"
@@ -74,10 +73,8 @@ func (h *subscriptionsHandler) handleMySubscriptions(m *telebot.Message) {
 		if sub.Muted {
 			statusFlags = append(statusFlags, "🔕 Muted")
 		}
-		
-		now := time.Now()
-		isPaused := sub.PausedUntil != nil && sub.PausedUntil.After(now)
-		if isPaused {
+
+		if sub.Paused() {
 			statusFlags = append(statusFlags, "⏸️ Paused")
 		}
 		

@@ -100,9 +100,7 @@ func (h *subscriptionManagementHandler) createSubscriptionButtons(sub *domain.Su
 
 	// Pause/Resume button
 	var pauseBtn telebot.InlineButton
-	now := time.Now()
-	isPaused := sub.PausedUntil != nil && sub.PausedUntil.After(now)
-	if isPaused {
+	if sub.Paused() {
 		pauseBtn = btnResumeSubscription
 	} else {
 		pauseBtn = btnPauseSubscription
@@ -143,9 +141,7 @@ func (h *subscriptionManagementHandler) createStatusMessage(sub *domain.Subscrip
 		statusMsg += "🔔 Notifications are currently enabled\n"
 	}
 
-	now := time.Now()
-	isPaused := sub.PausedUntil != nil && sub.PausedUntil.After(now)
-	if isPaused {
+	if sub.Paused() {
 		statusMsg += "⏸️ Notifications are paused until " + sub.PausedUntil.Format("Jan 2, 2006 15:04")
 	} else {
 		statusMsg += "▶️ Notifications are active"
