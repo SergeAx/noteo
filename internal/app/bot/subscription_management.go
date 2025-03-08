@@ -18,6 +18,8 @@ var (
 	btnUnmuteSubscription  = telebot.InlineButton{Unique: "unmute_subscription", Text: "🔔 Unmute"}
 	btnPauseSubscription   = telebot.InlineButton{Unique: "pause_subscription", Text: "⏸️ Pause for 24 hours"}
 	btnResumeSubscription  = telebot.InlineButton{Unique: "resume_subscription", Text: "▶️ Resume"}
+	btnUnsubscribe         = telebot.InlineButton{Unique: "unsubscribe", Text: "❌ Unsubscribe"}
+	btnResubscribe         = telebot.InlineButton{Unique: "resubscribe", Text: "↩️ Re-subscribe"}
 	btnBackToSubscriptions = telebot.ReplyButton{Text: "Back to subscriptions"}
 
 	subscriptionManagementMenu = &telebot.ReplyMarkup{
@@ -43,6 +45,8 @@ func (h *subscriptionManagementHandler) register() {
 	h.service.bot.Handle(&btnUnmuteSubscription, h.handleUnmuteSubscription)
 	h.service.bot.Handle(&btnPauseSubscription, h.handlePauseSubscription)
 	h.service.bot.Handle(&btnResumeSubscription, h.handleResumeSubscription)
+	h.service.bot.Handle(&btnUnsubscribe, h.handleUnsubscribe)
+	h.service.bot.Handle(&btnResubscribe, h.handleResubscribe)
 }
 
 // handleBackToSubscriptions redirects to the subscriptions list
@@ -119,9 +123,14 @@ func (h *subscriptionManagementHandler) handleManageSubscription(c *telebot.Call
 	}
 	pauseBtn.Data = projectID.String()
 
+	// Unsubscribe button
+	unsubBtn := btnUnsubscribe
+	unsubBtn.Data = projectID.String()
+
 	inlineMarkup.InlineKeyboard = [][]telebot.InlineButton{
 		{muteBtn},
 		{pauseBtn},
+		{unsubBtn},
 	}
 
 	// Status message
@@ -207,9 +216,14 @@ func (h *subscriptionManagementHandler) updateSubscriptionMessage(c *telebot.Cal
 	}
 	pauseBtn.Data = projectID.String()
 
+	// Unsubscribe button
+	unsubBtn := btnUnsubscribe
+	unsubBtn.Data = projectID.String()
+
 	inlineMarkup.InlineKeyboard = [][]telebot.InlineButton{
 		{muteBtn},
 		{pauseBtn},
+		{unsubBtn},
 	}
 
 	// Status message
@@ -342,4 +356,78 @@ func (h *subscriptionManagementHandler) handleResumeSubscription(c *telebot.Call
 
 	// Send a confirmation with the subscription management menu
 	h.service.bot.Send(c.Sender, "Notifications have been resumed.", subscriptionManagementMenu)
+}
+
+// handleUnsubscribe handles unsubscribing from a project
+func (h *subscriptionManagementHandler) handleUnsubscribe(c *telebot.Callback) {
+	projectID, err := uuid.Parse(c.Data)
+	if err != nil {
+		slog.Error("Invalid project ID in unsubscribe callback", "error", err, "data", c.Data)
+		h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Invalid subscription. Please try again."})
+		return
+	}
+
+	// Get project details
+	project, err := h.service.projectService.GetByID(projectID)
+	if err != nil {
+		slog.Error("Failed to get project details", "error", err, "project_id", projectID)
+		h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Failed to get project details. Please try again."})
+		return
+	}
+
+	// Unsubscribe the user
+	userID := domain.MustNewTelegramUserID(int64(c.Sender.ID))
+	if err := h.service.subscriptionService.Unsubscribe(userID, projectID); err != nil {
+		slog.Error("Failed to unsubscribe", "error", err)
+		h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Failed to unsubscribe. Please try again."})
+		return
+	}
+
+	// Respond to the callback to remove the loading indicator
+	h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Unsubscribed successfully"})
+
+	// Create inline keyboard with re-subscribe button
+	inlineMarkup := &telebot.ReplyMarkup{}
+	resubBtn := btnResubscribe
+	resubBtn.Data = projectID.String()
+	inlineMarkup.InlineKeyboard = [][]telebot.InlineButton{
+		{resubBtn},
+	}
+
+	// Update the message
+	message := fmt.Sprintf("You have unsubscribed from <b>%s</b>", project.Name)
+	_, err = h.service.bot.Edit(c.Message, message, &telebot.SendOptions{ParseMode: telebot.ModeHTML}, inlineMarkup)
+	if err != nil {
+		slog.Error("Failed to update subscription message after unsubscribe", "error", err)
+	}
+
+	// Send a confirmation with the subscription management menu
+	h.service.bot.Send(c.Sender, "You have been unsubscribed from the project.", subscriptionManagementMenu)
+}
+
+// handleResubscribe handles re-subscribing to a project
+func (h *subscriptionManagementHandler) handleResubscribe(c *telebot.Callback) {
+	projectID, err := uuid.Parse(c.Data)
+	if err != nil {
+		slog.Error("Invalid project ID in resubscribe callback", "error", err, "data", c.Data)
+		h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Invalid project. Please try again."})
+		return
+	}
+
+	// Re-subscribe the user
+	userID := domain.MustNewTelegramUserID(int64(c.Sender.ID))
+	if err := h.service.subscriptionService.Subscribe(userID, projectID); err != nil {
+		slog.Error("Failed to resubscribe", "error", err)
+		h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Failed to resubscribe. Please try again."})
+		return
+	}
+
+	// Respond to the callback to remove the loading indicator
+	h.service.bot.Respond(c, &telebot.CallbackResponse{Text: "Re-subscribed successfully"})
+
+	// Update the message with the regular subscription management view
+	h.updateSubscriptionMessage(c, projectID)
+
+	// Send a confirmation with the subscription management menu
+	h.service.bot.Send(c.Sender, "You have been re-subscribed to the project.", subscriptionManagementMenu)
 }
