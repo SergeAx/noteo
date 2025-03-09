@@ -84,7 +84,10 @@ func NewBotConfig(cfg *Config) *bot.Config {
 // NewAPIConfig creates API-specific configuration
 func NewAPIConfig(cfg *Config) *api.Config {
 	return &api.Config{
-		Port: cfg.Port,
+		Port:         cfg.Port,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 5 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
 }
 

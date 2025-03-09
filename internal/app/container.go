@@ -66,11 +66,14 @@ func NewContainer(cfg *Config) (*Container, error) {
 	c.provide(domain.NewProjectService, "project service")
 	c.provide(domain.NewSubscriptionService, "subscription service")
 
-	// App services
-	c.provide(api.NewService, "api service")
+	// Create message queue
+	c.provide(queue.NewQueue, "message queue")
 
+	// App services
 	c.provide(bot.NewStateManager, "state manager")
 	c.provide(bot.NewService, "bot service")
+	c.provide(bot.NewService, "message sender", new(queue.MessageSender))
+	c.provide(api.NewService, "api service")
 
 	if c.err != nil {
 		return nil, c.err

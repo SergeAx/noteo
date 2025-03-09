@@ -82,3 +82,8 @@ func (s *Service) Start() {
 	slog.Info("Starting Telegram bot", "username", s.bot.Me.Username, "url", "https://t.me/"+s.bot.Me.Username)
 	s.bot.Start()
 }
+
+// Stop gracefully stops the bot
+func (s *Service) Stop() {
+	s.bot.Stop()
+}
