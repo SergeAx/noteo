@@ -77,4 +77,5 @@ Use `NOTEO_` prefix for env variables.
 
 * NOTEO_BOT_TOKEN - Telegram bot token
 * NOTEO_PORT - port for REST API to listen on. Default 8080
-* NOTEO_DB_DSN - DSN for Gorm database connection. Should start with `sqlite:` or `postgres:`
+* NOTEO_DB_DSN - DSN for Gorm database connection. Should start with `sqlite:`
+or `postgres:`
