@@ -11,36 +11,36 @@ import (
 )
 
 type subscription struct {
-	ID            uuid.UUID `gorm:"primaryKey;type:uuid"`
-	UserID        domain.TelegramUserID
-	ProjectID     uuid.UUID
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
-	Muted         bool
-	PausedUntil   *time.Time
+	ID          uuid.UUID `gorm:"primaryKey;type:uuid"`
+	UserID      domain.TelegramUserID
+	ProjectID   uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	Muted       bool
+	PausedUntil *time.Time
 }
 
 func (s *subscription) toDomain() *domain.Subscription {
 	return &domain.Subscription{
-		ID:            s.ID,
-		UserID:        s.UserID,
-		ProjectID:     s.ProjectID,
-		CreatedAt:     s.CreatedAt,
-		UpdatedAt:     s.UpdatedAt,
-		Muted:         s.Muted,
-		PausedUntil:   s.PausedUntil,
+		ID:          s.ID,
+		UserID:      s.UserID,
+		ProjectID:   s.ProjectID,
+		CreatedAt:   s.CreatedAt,
+		UpdatedAt:   s.UpdatedAt,
+		Muted:       s.Muted,
+		PausedUntil: s.PausedUntil,
 	}
 }
 
 func subscriptionFromDomain(s *domain.Subscription) *subscription {
 	return &subscription{
-		ID:            s.ID,
-		UserID:        s.UserID,
-		ProjectID:     s.ProjectID,
-		CreatedAt:     s.CreatedAt,
-		UpdatedAt:     s.UpdatedAt,
-		Muted:         s.Muted,
-		PausedUntil:   s.PausedUntil,
+		ID:          s.ID,
+		UserID:      s.UserID,
+		ProjectID:   s.ProjectID,
+		CreatedAt:   s.CreatedAt,
+		UpdatedAt:   s.UpdatedAt,
+		Muted:       s.Muted,
+		PausedUntil: s.PausedUntil,
 	}
 }
 
