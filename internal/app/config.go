@@ -7,10 +7,10 @@ import (
 
 	"github.com/spf13/viper"
 
-	"gitlab.com/trum/noteo/internal/app/api"
-	"gitlab.com/trum/noteo/internal/app/bot"
-	"gitlab.com/trum/noteo/internal/app/db"
-	"gitlab.com/trum/noteo/internal/app/queue"
+	"github.com/sergeax/noteo/internal/app/api"
+	"github.com/sergeax/noteo/internal/app/bot"
+	"github.com/sergeax/noteo/internal/app/db"
+	"github.com/sergeax/noteo/internal/app/queue"
 )
 
 type Config struct {

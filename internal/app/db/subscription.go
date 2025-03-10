@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"gitlab.com/trum/noteo/internal/domain"
+	"github.com/sergeax/noteo/internal/domain"
 )
 
 type subscription struct {

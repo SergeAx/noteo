@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"gitlab.com/trum/noteo/internal/domain"
+	"github.com/sergeax/noteo/internal/domain"
 )
 
 var (

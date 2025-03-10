@@ -5,11 +5,11 @@ import (
 
 	"go.uber.org/dig"
 
-	"gitlab.com/trum/noteo/internal/app/api"
-	"gitlab.com/trum/noteo/internal/app/bot"
-	"gitlab.com/trum/noteo/internal/app/db"
-	"gitlab.com/trum/noteo/internal/app/queue"
-	"gitlab.com/trum/noteo/internal/domain"
+	"github.com/sergeax/noteo/internal/app/api"
+	"github.com/sergeax/noteo/internal/app/bot"
+	"github.com/sergeax/noteo/internal/app/db"
+	"github.com/sergeax/noteo/internal/app/queue"
+	"github.com/sergeax/noteo/internal/domain"
 )
 
 type Container struct {

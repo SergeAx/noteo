@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitlab.com/trum/noteo/internal/app/api"
-	"gitlab.com/trum/noteo/internal/domain"
+	"github.com/sergeax/noteo/internal/app/api"
+	"github.com/sergeax/noteo/internal/domain"
 )
 
 func TestNewContainer(t *testing.T) {

@@ -1,4 +1,4 @@
-module gitlab.com/trum/noteo
+module github.com/sergeax/noteo
 
 go 1.23.4
 

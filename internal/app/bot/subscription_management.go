@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/tucnak/telebot"
 
-	"gitlab.com/trum/noteo/internal/domain"
+	"github.com/sergeax/noteo/internal/domain"
 )
 
 // Menu items for subscription management

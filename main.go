@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"gitlab.com/trum/noteo/internal/app"
+	"github.com/sergeax/noteo/internal/app"
 )
 
 func main() {

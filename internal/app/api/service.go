@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/trum/noteo/internal/app/queue"
-	"gitlab.com/trum/noteo/internal/domain"
+	"github.com/sergeax/noteo/internal/app/queue"
+	"github.com/sergeax/noteo/internal/domain"
 )
 
 type Service struct {

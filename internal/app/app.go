@@ -7,9 +7,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"gitlab.com/trum/noteo/internal/app/api"
-	"gitlab.com/trum/noteo/internal/app/bot"
-	"gitlab.com/trum/noteo/internal/app/queue"
+	"github.com/sergeax/noteo/internal/app/api"
+	"github.com/sergeax/noteo/internal/app/bot"
+	"github.com/sergeax/noteo/internal/app/queue"
 )
 
 type App struct {

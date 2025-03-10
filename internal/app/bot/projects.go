@@ -6,7 +6,7 @@ import (
 
 	"github.com/tucnak/telebot"
 
-	"gitlab.com/trum/noteo/internal/domain"
+	"github.com/sergeax/noteo/internal/domain"
 )
 
 var (
